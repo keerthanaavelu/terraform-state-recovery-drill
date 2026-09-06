@@ -121,3 +121,18 @@ This is a pure state bookkeeping operation — no API calls to Azure, no destroy
 **Outcome:** Avoided an unnecessary and potentially disruptive destroy/recreate cycle caused purely by a code refactor.
 
 **Lesson:** Any time a resource's *local name* changes in `.tf` — through refactoring, restructuring modules, or renaming for clarity — `terraform state mv` is required to preserve the resource's identity in state. Skipping this step causes real, unnecessary infrastructure churn.
+
+## Summary Table
+
+| Drill | Problem | Tool Used | Outcome |
+|---|---|---|---|
+| 1 | Resource deleted outside Terraform | `plan` → `apply` | Recreated cleanly, no dependent disruption |
+| 2 | Resource created outside Terraform | `import` | Adopted into management, zero disruption |
+| 3 | Resource renamed in config | `state mv` | Avoided unnecessary destroy/recreate |
+
+## Key Takeaways
+
+- State drift is inevitable in real environments — the skill isn't avoiding it, it's recovering without unnecessary disruption.
+- `terraform apply` is the right tool when you *want* Terraform to restore what should exist.
+- `terraform import` and `terraform state mv` exist specifically to avoid destroy/recreate cycles when real infrastructure is fine but state bookkeeping isn't — critical in any environment where "just delete and recreate" isn't safe (production, stateful resources, anything with dependents).
+- Azure's own dependency protections (e.g., blocking NSG deletion while in use) are a useful safety net worth knowing about independent of Terraform.
