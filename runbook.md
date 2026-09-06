@@ -70,3 +70,30 @@ Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
 **Outcome:** Manual deletion was detected and cleanly reconciled by letting Terraform recreate the missing resources. Azure's built-in dependency protection (blocking direct NSG deletion while associated) is itself a useful safety net worth noting.
 
 **Lesson:** `terraform plan`/`apply` alone is sufficient recovery when the goal is simply to restore what should exist — `import`/`state mv` are reserved for cases where you want to _adopt_ existing real-world resources without destroying/recreating them (see Drill 2, 3).
+
+## Drill 2: Resource Created Outside Terraform, Adopted via Import
+
+**Scenario:** Someone manually creates a resource in Azure that should be managed by Terraform.
+
+**Setup:**
+
+- Manually created `nsg-manual` (Network Security Group) in `tf_res_group1` via Azure Portal — untouched by Terraform.
+- Retrieved its resource ID via `az network nsg show`.
+- Wrote a matching (not-yet-applied) resource block in `dev/imported.tf`:
+
+```hcl
+  resource "azurerm_network_security_group" "manual" {
+    name                = "nsg-manual"
+    location            = "eastus"
+    resource_group_name = "tf_res_group1"
+  }
+```
+
+**Import:**
+→ "No changes." Config matched the imported resource with no drift.
+
+→ Confirmed `azurerm_network_security_group.manual` now tracked in state.
+
+**Outcome:** Manually-created resource successfully adopted into Terraform management with zero disruption — no destroy, no recreate.
+
+**Lesson:** `terraform import` requires exact resource ID formatting per provider (case-sensitive segments) — a small but common gotcha. Also, the `.tf` resource block must be written _before_ import; import only populates state, not code.
