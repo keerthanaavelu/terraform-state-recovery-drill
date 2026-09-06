@@ -97,3 +97,27 @@ Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
 **Outcome:** Manually-created resource successfully adopted into Terraform management with zero disruption — no destroy, no recreate.
 
 **Lesson:** `terraform import` requires exact resource ID formatting per provider (case-sensitive segments) — a small but common gotcha. Also, the `.tf` resource block must be written _before_ import; import only populates state, not code.
+
+## Drill 3: State Mismatch After Resource Rename in Config
+
+**Scenario:** A resource is renamed in `.tf` code (e.g., for clearer naming conventions) without updating state — Terraform sees this as "old resource deleted, new resource needed," even though nothing changed in Azure.
+
+**Break:**
+
+- Renamed the resource block in `dev/imported.tf`:
+  `azurerm_network_security_group.manual` → `azurerm_network_security_group.manual_nsg`
+  (only the local label changed; the actual Azure resource name `nsg-manual` stayed the same)
+
+**Detect:**
+Output: `Plan: 1 to add, 0 to change, 1 to destroy.`
+Terraform planned to destroy `azurerm_network_security_group.manual` and create `azurerm_network_security_group.manual_nsg` — despite it being the exact same real-world resource.
+
+**Recovery:**
+This is a pure state bookkeeping operation — no API calls to Azure, no destroy, no create.
+
+**Verify:**
+→ "No changes." Confirmed the renamed block now correctly maps to the existing resource.
+
+**Outcome:** Avoided an unnecessary and potentially disruptive destroy/recreate cycle caused purely by a code refactor.
+
+**Lesson:** Any time a resource's *local name* changes in `.tf` — through refactoring, restructuring modules, or renaming for clarity — `terraform state mv` is required to preserve the resource's identity in state. Skipping this step causes real, unnecessary infrastructure churn.
